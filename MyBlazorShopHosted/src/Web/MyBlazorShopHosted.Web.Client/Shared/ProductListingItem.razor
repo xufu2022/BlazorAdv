@@ -1,0 +1,45 @@
+﻿@using MyBlazorShopHosted.Libraries.Shared.Product.Models;
+@using MyBlazorShopHosted.Libraries.Shared.ShoppingCart.Models
+@using System.Text.Json
+@inject NavigationManager navigationManager
+@inject HttpClient httpClient
+@inject IConfiguration configuration
+@if (Product != null)
+{
+    <div>
+        <dt>
+            <a href="@Product.FullUrl">@Product.Name</a>
+        </dt>
+        <dd>
+            <a href="@Product.FullUrl" role="presentation" tabindex="-1">
+                <img src="/images/@Product.Image" alt="@Product.Name" style="padding: 0 7.143%;">
+            </a>
+        </dd>
+        <dd class="offer">@Product.Price.ToString("c")</dd>
+        <dd class="desc">@Product.Description</dd>
+    </div>
+}
+@code {
+    [Parameter]
+    public ProductModel? Product { get; set; }
+
+    private bool HasProductInCart { get; set; }
+
+    private int? Quantity { get; set; }
+
+    [CascadingParameter(Name="ShoppingCartCountModel")]
+    private ShoppingCartCountModel? ShoppingCartCountModel { get; set; }
+}
+@functions {
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Product != null)
+        {
+            HasProductInCart = await httpClient.GetFromJsonAsync<bool>(
+                    string.Format("/api/shopping-cart/has-product/{0}", Product.Sku)
+            );
+        }
+
+        await base.OnParametersSetAsync();
+    }
+}

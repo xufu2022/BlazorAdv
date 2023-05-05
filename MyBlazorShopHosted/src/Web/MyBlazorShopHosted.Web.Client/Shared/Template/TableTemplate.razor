@@ -1,0 +1,27 @@
+﻿@using MyBlazorShopHosted.Web.Client.Components
+<table>
+    @if (HeaderNames?.Any() ?? false)
+    {
+        <thead>
+            <tr>
+                @foreach (var headerName in HeaderNames) {
+                    <th>
+                        @headerName.Name
+                    </th>
+                }
+            </tr>
+        </thead>
+    }
+    <tbody>
+        @if (RowTemplate != null) {
+            @RowTemplate
+        }
+    </tbody>
+</table>
+@code {
+    [Parameter]
+    public IReadOnlyList<TableHeaderName>? HeaderNames { get; set; }
+
+    [Parameter]
+    public RenderFragment? RowTemplate { get; set; }
+}

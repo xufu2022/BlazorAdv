@@ -1,0 +1,63 @@
+﻿@using MyBlazorShopHosted.Web.Client.Shared.Template
+@using MyBlazorShopHosted.Web.Client.Components
+@using System.Globalization
+@using MyBlazorShopHosted.Libraries.Shared.ShoppingCart.Models
+@page "/cart"
+@inject HttpClient httpClient
+<PageTitle>Shopping cart page</PageTitle>
+<HeadContent>
+    <meta name="description" content="Shopping cart page" />
+    <link href="/css/bigstarcollectables.cart.css" rel="stylesheet" />
+</HeadContent>
+<section id="cart">
+    <h1>Shopping Cart@(ShoppingCartCountModel != null ? string.Format(" ({0} item{1})", ShoppingCartCountModel.Count, ShoppingCartCountModel.Count != 1 ? "s" : "") : "")</h1>
+    <form>
+    <TableTemplate HeaderNames="@TableHeaderNames">
+        <RowTemplate>
+            @if (ShoppingCartItems?.Items != null)
+            {
+                @foreach (var item in ShoppingCartItems.Items)
+                {
+                    <ShoppingCartItem Item="item"></ShoppingCartItem>
+                }
+            }
+        </RowTemplate>
+    </TableTemplate>
+    </form>
+</section>
+@code {
+    private List<TableHeaderName> TableHeaderNames = new() {
+        new TableHeaderName("Product"),
+        new TableHeaderName("Price"),
+        new TableHeaderName("Quantity"),
+        new TableHeaderName("Total"),
+        new TableHeaderName("Remove")
+    };
+
+    private ShoppingCartModel? ShoppingCartItems { get; set; }
+
+    [CascadingParameter(Name = "ShoppingCartCountModel")]
+    private ShoppingCartCountModel? ShoppingCartCountModel { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ShoppingCartItems = await httpClient.GetFromJsonAsync<ShoppingCartModel?>(
+           "/api/shopping-cart"
+        );
+        if (ShoppingCartCountModel != null)
+        {
+            ShoppingCartCountModel.UpdateCart += async () =>
+            {
+                // Update shopping cart when the count has changed.
+                ShoppingCartItems = await httpClient.GetFromJsonAsync<ShoppingCartModel?>(
+                    "/api/shopping-cart"
+                );
+
+                // Refresh state
+                StateHasChanged();
+            };
+        }
+
+        await base.OnInitializedAsync();
+    }
+}

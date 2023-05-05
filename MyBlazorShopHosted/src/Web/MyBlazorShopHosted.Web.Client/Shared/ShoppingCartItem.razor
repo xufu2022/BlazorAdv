@@ -1,0 +1,48 @@
+﻿@using MyBlazorShopHosted.Libraries.Shared.ShoppingCart.Models
+@using MyBlazorShopHosted.Libraries.Shared.Product.Models
+@inject HttpClient httpClient
+@if (Item != null)
+{
+    <tr>
+        <td class="image">
+            <a href="@Item.Product.FullUrl" role="presentation" tabindex="-1">
+                <img alt="Photo of It’s All 0’s and 1’s to Me! Apron, Black" src="/images/@Item.Product.Image" style="padding: 0 10%;">
+            </a>
+        </td>
+        <td class="name"><a href="@Item.Product.FullUrl">@Item.Product.Name</a></td>
+        <td class="dets">
+            <p>Product ID: @Item.Product.Sku</p>
+        </td>
+        <td class="qty">@Item.Quantity</td>
+        <td class="total">@Item.TotalPrice.ToString("c")</td>
+        <td class="action">
+            <a role="button" @onclick="DeleteCartItemAsync">Delete</a>
+        </td>
+    </tr>    
+}
+@code {
+    [Parameter]
+    public ShoppingCartItemModel? Item { get; set; }
+
+    [CascadingParameter(Name="ShoppingCartCountModel")]
+    private ShoppingCartCountModel? ShoppingCartCountModel { get; set; }
+}
+@functions {
+    private async Task DeleteCartItemAsync()
+    {
+        if (Item != null)
+        {
+            // Delete shopping cart item.
+            await httpClient.DeleteAsync(
+                string.Format("/api/shopping-cart/{0}", 
+                    Item.Product.Sku
+                )
+            );
+
+            if (ShoppingCartCountModel != null) {
+                // Item deleted, so call the update cart event
+                await ShoppingCartCountModel.OnUpdateCartAsync(httpClient);
+            }
+        }
+    }
+}

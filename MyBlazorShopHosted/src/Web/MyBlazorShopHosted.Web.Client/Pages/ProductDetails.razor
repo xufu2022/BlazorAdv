@@ -1,0 +1,155 @@
+﻿@using MyBlazorShopHosted.Libraries.Shared.Product.Models
+@using MyBlazorShopHosted.Libraries.Shared.ShoppingCart.Models
+@using MyBlazorShopHosted.Web.Client.Shared.Layout
+@using System.Text.Json
+@page "/product/{slug}"
+@inject NavigationManager navigationManager
+@inject HttpClient httpClient
+@inject IConfiguration configuration
+@inject IJSRuntime jsRuntime
+@if (Product != null)
+{
+    <PageTitle>@Product.Name</PageTitle>
+    <HeadContent>
+        <meta name="description" content="@Product.Name product page" />
+        <link href="/css/bigstarcollectables.product.css" rel="stylesheet" />
+    </HeadContent>
+    <nav aria-label="Breadcrumb">
+        <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+            <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+                <a href="/" itemprop="item"><span itemprop="name">Shop</span></a>
+                <meta itemprop="position" content="1">
+                <span aria-hidden="true">&rsaquo;</span>
+            </li>
+
+            <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+                <a href="/product/@Product.Sku" itemprop="item" aria-current="page"><span itemprop="name">@Product.Name</span></a>
+                <meta itemprop="position" content="2">
+            </li>
+        </ol>
+    </nav>
+    <section id="product" itemscope itemtype="https://schema.org/Product">
+        <header>
+            <div class="wrapper">
+                <img src="/images/@Product.Image" alt="@Product.Name" style="padding: 0 9.917%;">
+            </div>
+            <h1 itemprop="name">@Product.Name</h1>
+            <b itemprop="offers" itemscope itemtype="https://schema.org/Offer">@Product.Price.ToString("c")</b>
+            <p class="product-id">Product ID: <span itemprop="productID">@Product.Sku</span></p>
+        </header>
+        <p itemprop="description">@Product.Description</p>
+        <EditForm Model="ProductAddToCartModel" OnValidSubmit="AddToCartAsync">
+            <DataAnnotationsValidator />
+            <ValidationMessage For="() => ProductAddToCartModel.Quantity" />
+            <div>
+                <label for="product-qty">Quantity:</label>
+                <div class="qty-widget">
+                    <InputNumber @bind-Value="ProductAddToCartModel.Quantity" id="product-qty" type="number" min="1" required />
+                </div>
+            </div>
+            <div>
+                <button type="submit" class="button lg solid gold">Add to cart</button>
+            </div>
+        </EditForm>
+    </section>
+    @if (AllProducts?.Any() ?? false)
+    {
+        <aside id="also">
+            <h1>Other products:</h1>
+            <dl class="prod-list">
+                @foreach (var product in AllProducts)
+                {
+                    <ProductListingItem Product="product"></ProductListingItem>
+                }
+            </dl>
+        </aside>
+    }
+}
+@code {
+    private ProductModel? Product { get; set; }
+
+    private bool HasProductInCart { get; set; }
+
+    [Parameter]
+    public string? Slug { get; set; }
+
+    private IList<ProductModel>? AllProducts { get; set; }
+
+    private ProductAddToCartModel ProductAddToCartModel = new ProductAddToCartModel();
+
+    [CascadingParameter(Name="ShoppingCartCountModel")]
+    private ShoppingCartCountModel? ShoppingCartCountModel { get; set; }
+}
+@functions {
+    protected override async Task OnInitializedAsync()
+    {
+        // Get product listing.
+        AllProducts = await httpClient.GetFromJsonAsync<IList<ProductModel>>(
+            "/api/product"
+        );
+
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(Slug))
+        {
+            Product = await httpClient.GetFromJsonAsync<ProductModel?>(
+                string.Format("/api/product/by-slug/{0}", Slug)
+            );
+            if (Product != null)
+            {
+                HasProductInCart = await httpClient.GetFromJsonAsync<bool>(
+                        string.Format("/api/shopping-cart/has-product/{0}", Product.Sku)
+                );
+            }
+            ProductAddToCartModel = new ProductAddToCartModel();
+        }
+    }
+
+    private async Task AddToCartAsync()
+    {
+        if (Product != null)
+        {
+            // Add to shopping cart
+            if (!HasProductInCart)
+            {
+                await httpClient.PostAsJsonAsync<ShoppingCartAddModel>(
+                    "/api/shopping-cart",
+                    new ShoppingCartAddModel
+                    {
+                        ProductSku = Product.Sku,
+                        Quantity = ProductAddToCartModel.Quantity
+                    }
+                );
+            }
+            else
+            {
+                await httpClient.PutAsJsonAsync<ShoppingCartAddModel>(
+                    "/api/shopping-cart",
+                    new ShoppingCartAddModel
+                    {
+                        ProductSku = Product.Sku,
+                        Quantity = ProductAddToCartModel.Quantity
+                    }
+                );
+            }
+
+            //await jsRuntime.InvokeVoidAsync("AddToCart", Product.Name);
+
+            HasProductInCart = await httpClient.GetFromJsonAsync<bool>(
+                string.Format("/api/shopping-cart/has-product/{0}", Product.Sku)
+            );
+
+            ProductAddToCartModel.Quantity = 1;
+
+            if (ShoppingCartCountModel != null) {
+                // Signal that the cart has been updated.
+                await ShoppingCartCountModel.OnUpdateCartAsync(httpClient);
+            } 
+
+            navigationManager.NavigateTo("/cart");
+        }
+    }
+}
