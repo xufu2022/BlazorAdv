@@ -136,7 +136,7 @@
                 );
             }
 
-            //await jsRuntime.InvokeVoidAsync("AddToCart", Product.Name);
+            await jsRuntime.InvokeVoidAsync("AddToCart", Product.Name);
 
             HasProductInCart = await httpClient.GetFromJsonAsync<bool>(
                 string.Format("/api/shopping-cart/has-product/{0}", Product.Sku)
